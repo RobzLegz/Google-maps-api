@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import storage from './private/firebase';
+import React, { useEffect, useState } from 'react';
+import storage, { db } from './private/firebase';
 import firebase from "firebase";
 
 function App() {
@@ -7,9 +7,28 @@ function App() {
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(null);
   const [image, setImage] = useState(null)
+  const [images, setImages] = useState([])
+
+  useEffect(() => {
+    db.collection("media").onSnapshot((snapshot) => (
+      setImages(snapshot.docs.map((doc) => ({
+        id: doc.id,
+        url: doc.data().url
+      })))
+    ))
+  }, [])
 
   const handleChange = (e) => {
     setFile(e.target.files[0])
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => {
+      setImage(reader.result)
+    }, false)
+
+    if(file){
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleUpload = () => {
@@ -23,7 +42,15 @@ function App() {
         setFile(null);
         setImage(url)
         console.log("Uploaded", url)
+        db.collection("media").add({
+          url: url,
+        }).then(() => {
+          setFile(null);
+          setProgress(null);
+          console.log("Uploaded", url)
+        }).catch((err) => alert(err))
       })
+      
     })
   }
 
@@ -37,6 +64,9 @@ function App() {
       <input onChange={handleChange} type="file" />
       <button disabled={!file} onClick={handleUpload} type="submit">Upload to firebase</button>
       <img src={image} alt="image"/>
+      {images.map((image) => (
+        <img src={image.url} key={image.id} />
+      ))}
     </div>
   )
 }
